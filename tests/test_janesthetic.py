@@ -233,7 +233,11 @@ def test_jit_vmap_composition(samples):
 
 
 def test_logZ_grad_safe_with_neginf_logl():
-    """logw keeps value_and_grad(logZ) finite when logl -inf."""
+    """logw keeps logZ and its first two β-derivatives finite when logl -inf.
+
+    The second-derivative assertion guards d_G (which is 2β²·d²logZ/dβ²) against
+    NaN propagation through the masked -inf branch in `logw`.
+    """
     nlive = jnp.array([5, 4, 3, 2, 1])
     logl = jnp.array([-jnp.inf, 0.0, 1.0, 2.0, 3.0])
 
@@ -242,5 +246,7 @@ def test_logZ_grad_safe_with_neginf_logl():
 
     for beta in [0.0, 0.5, 1.0, 2.0]:
         Z, dZ = jax.value_and_grad(logZ_fn)(beta)
+        ddZ = jax.grad(jax.grad(logZ_fn))(beta)
         assert jnp.isfinite(Z), f"logZ not finite at β={beta}"
         assert jnp.isfinite(dZ), f"d logZ/dβ not finite at β={beta}"
+        assert jnp.isfinite(ddZ), f"d² logZ/dβ² not finite at β={beta}"
