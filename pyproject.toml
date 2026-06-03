@@ -1,0 +1,22 @@
+[project]
+name = "janesthetic"
+dynamic = ["version"]
+description = "JAX-anesthetic"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "jax",
+    "chex",
+]
+
+[build-system]
+requires = ["setuptools_scm>=8"]
+
+[tool.setuptools_scm]
+version_file = "janesthetic/_version.py"
+
+[project.optional-dependencies]
+dev = ["pytest", "pytest-cov", "anesthetic"]
+
+[tool.setuptools.packages.find]
+include = ["janesthetic"]

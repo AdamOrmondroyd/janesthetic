@@ -1,0 +1,43 @@
+# version
+**/_version.py
+
+# Python-generated files
+__pycache__/
+*.py[oc]
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Environment variables
+.env
+
+# SQLite databases
+*.db
+
+# Frontend build artifacts
+frontend/node_modules/
+frontend/.svelte-kit/
+frontend/build/
+frontend/package-lock.json
+
+# Posteriors (pre-computed, large)
+backend/posteriors/*.npz
+
+*.aux
+*.lof
+*.log
+*.pid
+*.lot
+*.fls
+*.out
+*.toc
+*.fmt
+*.fot
+*.cb
+*.cb2
+*.lb
+*.fdb_latexmk
+*.synctex.gz
