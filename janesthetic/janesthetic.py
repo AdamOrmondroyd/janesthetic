@@ -69,8 +69,12 @@ class SortedRun:
     def D_KL(self, beta=1.0):
         return self.logL_P(beta) - self.logZ(beta)
 
+    def d_G(self, beta=1.0):
+        return 2 * beta**2 * grad(grad(self.logZ))(beta)
+
 
 def logw(sorted_run: SortedRun, beta=1.0): return sorted_run.logw(beta)
 def logZ(sorted_run: SortedRun, beta=1.0): return sorted_run.logZ(beta)
 def logL_P(sorted_run: SortedRun, beta=1.0): return sorted_run.logL_P(beta)
 def D_KL(sorted_run: SortedRun, beta=1.0): return sorted_run.D_KL(beta)
+def d_G(sorted_run: SortedRun, beta=1.0): return sorted_run.d_G(beta)
