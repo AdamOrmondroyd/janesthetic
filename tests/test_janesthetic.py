@@ -116,8 +116,14 @@ def test_free_functions_match_methods(samples, beta):
 
 
 def test_vmap_over_sortedrun(samples):
-    stacked = jax.tree.map(lambda x: jnp.stack([x, x]), samples)
+    """vmap of all four free functions over a non-degenerate 2-batch."""
+    other = SortedRun(logl=samples.logl + 0.5, nlive=samples.nlive)
+    stacked = jax.tree.map(lambda x, y: jnp.stack([x, y]), samples, other)
+    n = samples.logl.shape[0]
+
+    out_logw = jax.vmap(logw)(stacked)
     out_logZ = jax.vmap(logZ)(stacked)
+    out_logL_P = jax.vmap(logL_P)(stacked)
     out_D_KL = jax.vmap(D_KL)(stacked)
 
     assert out_logw.shape == (2, n)
