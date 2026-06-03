@@ -232,6 +232,16 @@ def test_jit_vmap_composition(samples):
     assert jnp.allclose(out_d_G[1], other.d_G())
 
 
+@pytest.mark.parametrize("beta", [1e-4, 100.0])
+def test_extreme_beta_finite(samples, beta):
+    """All stats stay finite at very small and very large β."""
+    assert jnp.all(jnp.isfinite(samples.logw(beta)))
+    assert jnp.isfinite(samples.logZ(beta))
+    assert jnp.isfinite(samples.logL_P(beta))
+    assert jnp.isfinite(samples.D_KL(beta))
+    assert jnp.isfinite(samples.d_G(beta))
+
+
 def test_logZ_grad_safe_with_neginf_logl():
     """logw keeps logZ and its first two β-derivatives finite when logl -inf.
 
