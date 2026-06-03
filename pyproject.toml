@@ -3,7 +3,7 @@ name = "janesthetic"
 dynamic = ["version"]
 description = "JAX-anesthetic"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.14"
 dependencies = [
     "jax",
     "chex",
@@ -15,8 +15,11 @@ requires = ["setuptools_scm>=8"]
 [tool.setuptools_scm]
 version_file = "janesthetic/_version.py"
 
+[tool.uv.sources]
+midas = { git = "ssh://git@github.com/polychord/midas", branch = "master" }
+
 [project.optional-dependencies]
-dev = ["pytest", "pytest-cov", "anesthetic"]
+dev = ["anesthetic", "midas", "pytest", "pytest-cov", "anesthetic"]
 
 [tool.setuptools.packages.find]
 include = ["janesthetic"]
