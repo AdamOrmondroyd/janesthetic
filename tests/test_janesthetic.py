@@ -199,8 +199,12 @@ def test_jit_vmap_composition(samples):
     out_D_KL = jax.jit(jax.vmap(D_KL))(stacked)
 
     assert out_logZ.shape == (2,)
-    assert jnp.allclose(out_logZ, samples.logZ())
-    assert jnp.allclose(out_D_KL, samples.D_KL())
+    assert jnp.allclose(out_logZ[0], samples.logZ())
+    assert jnp.allclose(out_logZ[1], other.logZ())
+    assert jnp.allclose(out_logL_P[0], samples.logL_P())
+    assert jnp.allclose(out_logL_P[1], other.logL_P())
+    assert jnp.allclose(out_D_KL[0], samples.D_KL())
+    assert jnp.allclose(out_D_KL[1], other.D_KL())
 
 
 def test_logZ_grad_safe_with_neginf_logl():
