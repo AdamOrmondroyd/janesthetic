@@ -5,7 +5,7 @@ from jax import numpy as jnp
 from jax.random import PRNGKey, uniform
 import pytest
 
-from janesthetic import D_KL, logw, sort, SortedRun
+from janesthetic import D_KL, logL_P, logw, logZ, sort, SortedRun
 from janesthetic.special import logsumexp
 from midas.nested_sampling import nested_sampling
 
@@ -105,6 +105,23 @@ def test_logL_P_matches_anesthetic(samples, anesthetic_samples, beta):
     assert jnp.allclose(samples.logL_P(beta),
                         anesthetic_samples.logL_P(beta=beta),
                         atol=1e-5)
+
+
+@pytest.mark.parametrize("beta", [0.5, 1.0, 2.0])
+def test_free_functions_match_methods(samples, beta):
+    assert jnp.allclose(logw(samples, beta), samples.logw(beta))
+    assert jnp.allclose(logZ(samples, beta), samples.logZ(beta))
+    assert jnp.allclose(logL_P(samples, beta), samples.logL_P(beta))
+    assert jnp.allclose(D_KL(samples, beta), samples.D_KL(beta))
+
+
+def test_vmap_over_sortedrun(samples):
+    stacked = jax.tree.map(lambda x: jnp.stack([x, x]), samples)
+    out_logZ = jax.vmap(logZ)(stacked)
+    out_D_KL = jax.vmap(D_KL)(stacked)
+    assert out_logZ.shape == (2,)
+    assert jnp.allclose(out_logZ, samples.logZ())
+    assert jnp.allclose(out_D_KL, samples.D_KL())
 
 
 def test_logZ_grad_safe_with_neginf_logl():
