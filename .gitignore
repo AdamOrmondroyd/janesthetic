@@ -6,6 +6,7 @@ __pycache__/
 *.py[oc]
 dist/
 wheels/
+build/
 *.egg-info
 
 # Virtual environments
