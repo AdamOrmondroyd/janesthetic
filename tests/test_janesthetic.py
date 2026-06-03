@@ -119,6 +119,79 @@ def test_vmap_over_sortedrun(samples):
     stacked = jax.tree.map(lambda x: jnp.stack([x, x]), samples)
     out_logZ = jax.vmap(logZ)(stacked)
     out_D_KL = jax.vmap(D_KL)(stacked)
+
+    assert out_logw.shape == (2, n)
+    assert out_logZ.shape == (2,)
+    assert out_logL_P.shape == (2,)
+    assert out_D_KL.shape == (2,)
+
+    assert jnp.allclose(out_logw[0], samples.logw())
+    assert jnp.allclose(out_logw[1], other.logw())
+    assert jnp.allclose(out_logZ[0], samples.logZ())
+    assert jnp.allclose(out_logZ[1], other.logZ())
+    assert jnp.allclose(out_logL_P[0], samples.logL_P())
+    assert jnp.allclose(out_logL_P[1], other.logL_P())
+    assert jnp.allclose(out_D_KL[0], samples.D_KL())
+    assert jnp.allclose(out_D_KL[1], other.D_KL())
+
+    # Sanity: the two batch elements are genuinely different.
+    assert not jnp.allclose(out_logZ[0], out_logZ[1])
+
+
+def test_vmap_over_beta(samples):
+    """vmap of the methods over a beta schedule."""
+    betas = jnp.array([0.5, 1.0, 2.0])
+    n = samples.logl.shape[0]
+
+    out_logw = jax.vmap(samples.logw)(betas)
+    out_logZ = jax.vmap(samples.logZ)(betas)
+    out_logL_P = jax.vmap(samples.logL_P)(betas)
+    out_D_KL = jax.vmap(samples.D_KL)(betas)
+
+    assert out_logw.shape == (3, n)
+    assert out_logZ.shape == (3,)
+    assert out_logL_P.shape == (3,)
+    assert out_D_KL.shape == (3,)
+
+    for i, beta in enumerate([0.5, 1.0, 2.0]):
+        assert jnp.allclose(out_logw[i], samples.logw(beta))
+        assert jnp.allclose(out_logZ[i], samples.logZ(beta))
+        assert jnp.allclose(out_logL_P[i], samples.logL_P(beta))
+        assert jnp.allclose(out_D_KL[i], samples.D_KL(beta))
+
+
+def test_double_vmap_samples_and_beta(samples):
+    """vmap over both SortedRun and beta axes simultaneously."""
+    other = SortedRun(logl=samples.logl + 0.5, nlive=samples.nlive)
+    stacked = jax.tree.map(lambda x, y: jnp.stack([x, y]), samples, other)
+    betas = jnp.array([0.5, 1.0, 2.0])
+
+    out = jax.vmap(jax.vmap(logZ, in_axes=(None, 0)),
+                   in_axes=(0, None))(stacked, betas)
+    assert out.shape == (2, 3)
+    for i, run in enumerate([samples, other]):
+        for j, beta in enumerate([0.5, 1.0, 2.0]):
+            assert jnp.allclose(out[i, j], run.logZ(beta))
+
+
+@pytest.mark.parametrize("beta", [0.5, 1.0, 2.0])
+def test_jit_free_functions(samples, beta):
+    """jit each free function, compare to the un-jitted method."""
+    assert jnp.allclose(jax.jit(logw)(samples, beta), samples.logw(beta))
+    assert jnp.allclose(jax.jit(logZ)(samples, beta), samples.logZ(beta))
+    assert jnp.allclose(jax.jit(logL_P)(samples, beta), samples.logL_P(beta))
+    assert jnp.allclose(jax.jit(D_KL)(samples, beta), samples.D_KL(beta))
+
+
+def test_jit_vmap_composition(samples):
+    """jit(vmap(...)) — the actual production pattern."""
+    other = SortedRun(logl=samples.logl + 0.5, nlive=samples.nlive)
+    stacked = jax.tree.map(lambda x, y: jnp.stack([x, y]), samples, other)
+
+    out_logZ = jax.jit(jax.vmap(logZ))(stacked)
+    out_logL_P = jax.jit(jax.vmap(logL_P))(stacked)
+    out_D_KL = jax.jit(jax.vmap(D_KL))(stacked)
+
     assert out_logZ.shape == (2,)
     assert jnp.allclose(out_logZ, samples.logZ())
     assert jnp.allclose(out_D_KL, samples.D_KL())
