@@ -36,13 +36,12 @@ def sort(ns_run):
     logl = ns_run.particles.loglikelihood[sort_idx]
     logl_birth = ns_run.particles.loglikelihood_birth[sort_idx]
     nlive = compute_nlive(logl, logl_birth)
-    return SortedRun(logl=logl, logl_birth=logl_birth, nlive=nlive)
+    return SortedRun(logl=logl, nlive=nlive)
 
 
 @dataclass
 class SortedRun:
     logl: Array
-    logl_birth: Array
     nlive: Array
 
     def logw(self, beta=1.0):
