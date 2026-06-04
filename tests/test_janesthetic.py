@@ -5,7 +5,7 @@ from jax import numpy as jnp
 from jax.random import PRNGKey, uniform
 import pytest
 
-from janesthetic import D_KL, d_G, logL_P, logw, logZ, sort, SortedRun
+from janesthetic import D_KL, d_G, logL_P, logdX, logw, logZ, sort, SortedRun
 from janesthetic.special import logsumexp
 from midas.nested_sampling import nested_sampling
 
@@ -122,6 +122,7 @@ def test_d_G_matches_anesthetic(samples, anesthetic_samples, beta):
 
 @pytest.mark.parametrize("beta", [0.5, 1.0, 2.0])
 def test_free_functions_match_methods(samples, beta):
+    assert jnp.allclose(logdX(samples), samples.logdX())
     assert jnp.allclose(logw(samples, beta), samples.logw(beta))
     assert jnp.allclose(logZ(samples, beta), samples.logZ(beta))
     assert jnp.allclose(logL_P(samples, beta), samples.logL_P(beta))

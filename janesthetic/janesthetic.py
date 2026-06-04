@@ -44,15 +44,15 @@ class SortedRun:
     logl: Array
     nlive: Array
 
-    def logw(self, beta=1.0):
-        """
-        Log nested sampling weights. Blatantly stolen from anesthetic.
-        """
+    def logdX(self):
         t = jnp.log(self.nlive/(self.nlive+1))
         logX = jnp.cumsum(t)
         logXp = jnp.concatenate([jnp.array([0.0]), logX[:-1]])
         logXm = jnp.concatenate([logX[1:], jnp.array([-jnp.inf])])
-        logdX = jnp.log1p(-jnp.exp(logXm-logXp)) + logXp - jnp.log(2)
+        return jnp.log1p(-jnp.exp(logXm-logXp)) + logXp - jnp.log(2)
+
+    def logw(self, beta=1.0):
+        logdX = self.logdX()
         safe_logl = jnp.where(jnp.isneginf(self.logl), 0.0, self.logl)
         return jnp.where(
             jnp.isneginf(self.logl),
@@ -73,6 +73,7 @@ class SortedRun:
         return 2 * beta**2 * grad(grad(self.logZ))(beta)
 
 
+def logdX(sorted_run: SortedRun): return sorted_run.logdX()
 def logw(sorted_run: SortedRun, beta=1.0): return sorted_run.logw(beta)
 def logZ(sorted_run: SortedRun, beta=1.0): return sorted_run.logZ(beta)
 def logL_P(sorted_run: SortedRun, beta=1.0): return sorted_run.logL_P(beta)
