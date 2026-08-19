@@ -1,6 +1,7 @@
 from chex import dataclass
 from jax import Array, grad
 from jax import numpy as jnp
+
 from janesthetic.special import logsumexp
 
 
