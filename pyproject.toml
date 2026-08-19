@@ -19,7 +19,7 @@ version_file = "janesthetic/_version.py"
 midas = { git = "ssh://git@github.com/polychord/midas", branch = "master" }
 
 [project.optional-dependencies]
-dev = ["anesthetic", "midas", "pytest", "pytest-cov", "anesthetic"]
+dev = ["anesthetic", "midas", "pytest", "pytest-cov"]
 
 [tool.setuptools.packages.find]
 include = ["janesthetic"]
