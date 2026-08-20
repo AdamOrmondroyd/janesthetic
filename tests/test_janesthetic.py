@@ -1,10 +1,10 @@
 import jax
-from jax import numpy as jnp
-from jax.scipy.special import gammaln
 import pytest
 from anesthetic.examples.perfect_ns import gaussian as perfect_gaussian
+from jax import numpy as jnp
+from jax.scipy.special import gammaln
 
-from janesthetic import D_KL, d_G, logL_P, logdX, logw, logZ, sort, SortedRun
+from janesthetic import D_KL, SortedRun, d_G, logdX, logL_P, logw, logZ, sort
 from janesthetic.special import logsumexp
 
 SIGMA = 0.1

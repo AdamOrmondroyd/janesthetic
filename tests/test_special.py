@@ -1,6 +1,6 @@
 import numpy as np
-from jax import numpy as jnp
 from anesthetic.utils import logsumexp as anesthetic_logsumexp
+from jax import numpy as jnp
 
 from janesthetic.special import logsumexp
 

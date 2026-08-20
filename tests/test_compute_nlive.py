@@ -1,5 +1,6 @@
 import jax
 from jax import numpy as jnp
+
 from janesthetic.janesthetic import compute_nlive
 
 
