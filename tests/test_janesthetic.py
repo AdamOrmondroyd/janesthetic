@@ -1,77 +1,49 @@
-import anesthetic
 import jax
-import numpy as np
 from jax import numpy as jnp
-from jax.random import PRNGKey, uniform
+from jax.scipy.special import gammaln
 import pytest
+from anesthetic.examples.perfect_ns import gaussian as perfect_gaussian
 
 from janesthetic import D_KL, d_G, logL_P, logdX, logw, logZ, sort, SortedRun
 from janesthetic.special import logsumexp
-from midas.nested_sampling import nested_sampling
 
 SIGMA = 0.1
-HALF_WIDTH = 10.0
-BOX = 2 * HALF_WIDTH
-
-
-def _gaussian_in_box_ns(nlive=500, seed=42):
-    """1D Gaussian likelihood at 0 with uniform box prior on [-10, 10]."""
-    def sample_prior(key, n):
-        return uniform(key, (n,)) * BOX - HALF_WIDTH
-
-    def log_prior(theta):
-        return jnp.where((-HALF_WIDTH < theta) & (theta < HALF_WIDTH),
-                         0.0, -jnp.inf)
-
-    def loglikelihood(theta):
-        return -theta**2 / (2*SIGMA**2) - 0.5*jnp.log(2*jnp.pi*SIGMA**2)
-
-    return nested_sampling(
-        PRNGKey(seed),
-        nlive=nlive,
-        sample_prior=sample_prior,
-        log_prior=log_prior,
-        loglikelihood=loglikelihood,
-        desc="Gaussian-in-box NS",
-    )
+R = 1.0
+NDIMS = 1
+NLIVE = 500
 
 
 def _analytic(beta):
-    """Closed-form logZ, logL_P, D_KL, d_G for the Gaussian-in-box
+    """Closed-form logZ, logL_P, D_KL, d_G for perfect_ns.gaussian
     (β > 0, Gaussian contained).
 
-    logL_P uses anesthetic's convention: logL_P = β·<logL>_{P_β}, so that
-    D_KL = logL_P - logZ holds uniformly across β.
+    The likelihood is unnormalised with logLmax = 0, i.e. logL = -r²/(2σ²),
+    under a uniform spherical prior of radius R. For σ ≪ R the Gaussian is
+    contained, so the L^β integral runs over all space:
 
-    d_G = 2β²·Var_{P_β}(logL). For 1D Gaussian-in-box, Var_{P_β}(logL) =
-    1/(2β²) so d_G = 1 independent of β.
+        Z(β) = (2πσ²/β)^(d/2) / V_R,   V_R = π^(d/2) R^d / Γ(d/2 + 1)
+
+    logL_P uses anesthetic's convention: logL_P = β·<logL>_{P_β}, so that
+    D_KL = logL_P - logZ holds uniformly across β. Here logL_P = -d/2 and
+    d_G = 2β²·Var_{P_β}(logL) = d, both independent of β.
     """
-    log_2pi_sigma2 = jnp.log(2*jnp.pi*SIGMA**2)
-    logZ = (1 - beta) / 2 * log_2pi_sigma2 - 0.5 * jnp.log(beta) - jnp.log(BOX)
-    logL_P = -0.5 * beta * log_2pi_sigma2 - 0.5
+    d = NDIMS
+    log_V_R = d/2 * jnp.log(jnp.pi) + d * jnp.log(R) - gammaln(d/2 + 1)
+    logZ = d/2 * jnp.log(2*jnp.pi*SIGMA**2) - d/2 * jnp.log(beta) - log_V_R
+    logL_P = -d / 2
     D_KL = logL_P - logZ
-    d_G = 1.0
+    d_G = float(d)
     return logZ, logL_P, D_KL, d_G
 
 
 @pytest.fixture(scope="module")
-def ns_run():
-    return _gaussian_in_box_ns()
+def anesthetic_samples():
+    return perfect_gaussian(nlive=NLIVE, ndims=NDIMS, sigma=SIGMA, R=R)
 
 
 @pytest.fixture(scope="module")
-def samples(ns_run):
-    return sort(ns_run)
-
-
-@pytest.fixture(scope="module")
-def anesthetic_samples(ns_run):
-    data = np.asarray(ns_run.particles.position)[:, None]
-    return anesthetic.NestedSamples(
-        data=data,
-        logL=np.asarray(ns_run.particles.loglikelihood),
-        logL_birth=np.asarray(ns_run.particles.loglikelihood_birth),
-    )
+def samples(anesthetic_samples, as_ns_run):
+    return sort(as_ns_run(anesthetic_samples))
 
 
 @pytest.mark.parametrize("beta", [0.5, 1.0, 2.0])
@@ -84,8 +56,13 @@ def test_match_analytic(samples, beta):
 
 
 def test_D_KL_zero_beta(samples):
-    """β=0: posterior collapses to prior, so D_KL = 0."""
-    assert jnp.abs(samples.D_KL(0.0)) < 1e-3
+    """β=0: posterior collapses to prior, so D_KL = 0.
+
+    D_KL(0) = -logZ(0) = -log Σ dX, and the Skilling estimator leaves Σ dX
+    short of 1 by O(1/nlive), so the bound scales with nlive rather than
+    being a fixed constant.
+    """
+    assert jnp.abs(samples.D_KL(0.0)) < 1 / NLIVE
 
 
 @pytest.mark.parametrize("beta", [0.5, 1.0, 2.0])

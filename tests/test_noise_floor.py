@@ -1,16 +1,14 @@
 """Cross-implementation agreement on a noisier chain.
 
-Uses anesthetic.examples.perfect_ns.gaussian at low nlive and higher
-dimensionality than the gaussian-in-box fixture, so the autodiff path for
-d_G has a chance to drift from anesthetic's direct variance formula. No
-midas dependency.
+Uses anesthetic.examples.perfect_ns.gaussian at lower nlive and higher
+dimensionality than the fixture in test_janesthetic.py, so the autodiff path
+for d_G has a chance to drift from anesthetic's direct variance formula.
 """
 import jax.numpy as jnp
 import pytest
 from anesthetic.examples.perfect_ns import gaussian as perfect_gaussian
 
-from janesthetic import SortedRun
-from janesthetic.janesthetic import compute_nlive
+from janesthetic import sort
 
 
 @pytest.fixture(scope="module")
@@ -19,13 +17,8 @@ def noisy_chain():
 
 
 @pytest.fixture(scope="module")
-def noisy_samples(noisy_chain):
-    logl = jnp.asarray(noisy_chain.logL.values)
-    logl_birth = jnp.asarray(noisy_chain.logL_birth.values)
-    idx = jnp.argsort(logl)
-    logl_s = logl[idx]
-    nlive_s = compute_nlive(logl_s, logl_birth[idx])
-    return SortedRun(logl=logl_s, nlive=nlive_s)
+def noisy_samples(noisy_chain, as_ns_run):
+    return sort(as_ns_run(noisy_chain))
 
 
 @pytest.mark.parametrize("stat,tol", [
