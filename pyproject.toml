@@ -16,7 +16,10 @@ requires = ["setuptools_scm>=8"]
 version_file = "janesthetic/_version.py"
 
 [project.optional-dependencies]
-dev = ["anesthetic", "blackjax>=1.6", "pytest", "pytest-cov"]
+dev = ["anesthetic", "blackjax>=1.6", "pytest", "pytest-cov", "ruff"]
+
+[dependency-groups]
+dev = ["janesthetic[dev]"]
 
 [tool.setuptools.packages.find]
 include = ["janesthetic"]
