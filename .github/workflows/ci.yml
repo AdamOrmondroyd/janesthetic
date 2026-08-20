@@ -1,4 +1,4 @@
-name: uv install and pytest
+name: lint and test
 
 on:
   push:
@@ -6,8 +6,14 @@ on:
   pull_request:
 
 jobs:
-  build:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v7
+    - uses: astral-sh/setup-uv@v8.2.0
+    - run: uvx ruff check
 
+  test:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -25,5 +31,3 @@ jobs:
       run: uv sync --locked
     - name: Test with pytest
       run: uv run pytest
-    - name: Lint with ruff
-      run: uv run ruff check
