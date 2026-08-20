@@ -55,6 +55,13 @@ def samples(anesthetic_samples, as_ns_run):
     return sort(as_ns_run(anesthetic_samples))
 
 
+@pytest.fixture(scope="module")
+def samples_x64(anesthetic_samples, as_ns_run):
+    """`samples` in float64, for the parity tests -- see test_noise_floor.py."""
+    with jax.enable_x64():
+        return sort(as_ns_run(anesthetic_samples))
+
+
 @pytest.mark.parametrize("beta", [0.5, 1.0, 2.0])
 def test_match_analytic(samples, beta):
     analytic_logZ, analytic_logL_P, analytic_D_KL, analytic_d_G = _analytic(beta)
@@ -75,35 +82,39 @@ def test_D_KL_zero_beta(samples):
 
 
 @pytest.mark.parametrize("beta", [0.5, 1.0, 2.0])
-def test_logZ_matches_anesthetic(samples, anesthetic_samples, beta):
+def test_logZ_matches_anesthetic(samples_x64, anesthetic_samples, beta):
     """Same ns_run → same logZ to float-precision tolerance."""
-    assert jnp.allclose(samples.logZ(beta),
-                        anesthetic_samples.logZ(beta=beta),
-                        atol=1e-5)
+    with jax.enable_x64():
+        assert jnp.allclose(samples_x64.logZ(beta),
+                            anesthetic_samples.logZ(beta=beta),
+                            atol=1e-5)
 
 
 @pytest.mark.parametrize("beta", [0.5, 1.0, 2.0])
-def test_D_KL_matches_anesthetic(samples, anesthetic_samples, beta):
+def test_D_KL_matches_anesthetic(samples_x64, anesthetic_samples, beta):
     """Same ns_run => same D_KL to float-precision tolerance."""
-    assert jnp.allclose(samples.D_KL(beta),
-                        anesthetic_samples.D_KL(beta=beta),
-                        atol=1e-5)
+    with jax.enable_x64():
+        assert jnp.allclose(samples_x64.D_KL(beta),
+                            anesthetic_samples.D_KL(beta=beta),
+                            atol=1e-5)
 
 
 @pytest.mark.parametrize("beta", [0.5, 1.0, 2.0])
-def test_logL_P_matches_anesthetic(samples, anesthetic_samples, beta):
+def test_logL_P_matches_anesthetic(samples_x64, anesthetic_samples, beta):
     """Same ns_run => same logL_P (β·<logL>_Pβ convention)."""
-    assert jnp.allclose(samples.logL_P(beta),
-                        anesthetic_samples.logL_P(beta=beta),
-                        atol=1e-5)
+    with jax.enable_x64():
+        assert jnp.allclose(samples_x64.logL_P(beta),
+                            anesthetic_samples.logL_P(beta=beta),
+                            atol=1e-5)
 
 
 @pytest.mark.parametrize("beta", [0.5, 1.0, 2.0])
-def test_d_G_matches_anesthetic(samples, anesthetic_samples, beta):
+def test_d_G_matches_anesthetic(samples_x64, anesthetic_samples, beta):
     """Same ns_run => same d_G (Bayesian model dimensionality)."""
-    assert jnp.allclose(samples.d_G(beta),
-                        anesthetic_samples.d_G(beta=beta),
-                        atol=1e-5)
+    with jax.enable_x64():
+        assert jnp.allclose(samples_x64.d_G(beta),
+                            anesthetic_samples.d_G(beta=beta),
+                            atol=1e-5)
 
 
 @pytest.mark.parametrize("beta", [0.5, 1.0, 2.0])
