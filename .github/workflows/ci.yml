@@ -1,0 +1,29 @@
+name: uv install and pytest
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.14"]
+
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        fetch-depth: 0  # full history so setuptools_scm can derive the version
+    - name: Install uv and set up python
+      uses: astral-sh/setup-uv@v8.2.0
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install the project
+      run: uv sync --locked
+    - name: Test with pytest
+      run: uv run pytest
+    - name: Lint with ruff
+      run: uv run ruff check
