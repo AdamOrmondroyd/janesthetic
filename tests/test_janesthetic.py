@@ -12,6 +12,15 @@ R = 1.0
 NDIMS = 1
 NLIVE = 500
 
+# logL_P is -d/2 and logZ is about -2.1 here, so an offset near either would
+# cancel `other`'s statistic to zero, where a relative tolerance has nothing
+# left to measure against.
+OFFSET = 3.0
+
+# d_G differentiates logZ twice, so jit and un-jitted paths drift by ~25 ulps
+# in float32 -- more than allclose's default 1e-5 rtol allows.
+D_G_RTOL = 1e-4
+
 
 def _analytic(beta):
     """Closed-form logZ, logL_P, D_KL, d_G for perfect_ns.gaussian
@@ -109,7 +118,7 @@ def test_free_functions_match_methods(samples, beta):
 
 def test_vmap_over_sortedrun(samples):
     """vmap of all four free functions over a non-degenerate 2-batch."""
-    other = SortedRun(logl=samples.logl + 0.5, nlive=samples.nlive)
+    other = SortedRun(logl=samples.logl + OFFSET, nlive=samples.nlive)
     stacked = jax.tree.map(lambda x, y: jnp.stack([x, y]), samples, other)
     n = samples.logl.shape[0]
 
@@ -133,8 +142,8 @@ def test_vmap_over_sortedrun(samples):
     assert jnp.allclose(out_logL_P[1], other.logL_P())
     assert jnp.allclose(out_D_KL[0], samples.D_KL())
     assert jnp.allclose(out_D_KL[1], other.D_KL())
-    assert jnp.allclose(out_d_G[0], samples.d_G())
-    assert jnp.allclose(out_d_G[1], other.d_G())
+    assert jnp.allclose(out_d_G[0], samples.d_G(), rtol=D_G_RTOL)
+    assert jnp.allclose(out_d_G[1], other.d_G(), rtol=D_G_RTOL)
 
     # Sanity: the two batch elements are genuinely different.
     assert not jnp.allclose(out_logZ[0], out_logZ[1])
@@ -162,12 +171,12 @@ def test_vmap_over_beta(samples):
         assert jnp.allclose(out_logZ[i], samples.logZ(beta))
         assert jnp.allclose(out_logL_P[i], samples.logL_P(beta))
         assert jnp.allclose(out_D_KL[i], samples.D_KL(beta))
-        assert jnp.allclose(out_d_G[i], samples.d_G(beta))
+        assert jnp.allclose(out_d_G[i], samples.d_G(beta), rtol=D_G_RTOL)
 
 
 def test_double_vmap_samples_and_beta(samples):
     """vmap over both SortedRun and beta axes simultaneously."""
-    other = SortedRun(logl=samples.logl + 0.5, nlive=samples.nlive)
+    other = SortedRun(logl=samples.logl + OFFSET, nlive=samples.nlive)
     stacked = jax.tree.map(lambda x, y: jnp.stack([x, y]), samples, other)
     betas = jnp.array([0.5, 1.0, 2.0])
 
@@ -186,12 +195,13 @@ def test_jit_free_functions(samples, beta):
     assert jnp.allclose(jax.jit(logZ)(samples, beta), samples.logZ(beta))
     assert jnp.allclose(jax.jit(logL_P)(samples, beta), samples.logL_P(beta))
     assert jnp.allclose(jax.jit(D_KL)(samples, beta), samples.D_KL(beta))
-    assert jnp.allclose(jax.jit(d_G)(samples, beta), samples.d_G(beta))
+    assert jnp.allclose(jax.jit(d_G)(samples, beta), samples.d_G(beta),
+                        rtol=D_G_RTOL)
 
 
 def test_jit_vmap_composition(samples):
     """jit(vmap(...)) — the actual production pattern."""
-    other = SortedRun(logl=samples.logl + 0.5, nlive=samples.nlive)
+    other = SortedRun(logl=samples.logl + OFFSET, nlive=samples.nlive)
     stacked = jax.tree.map(lambda x, y: jnp.stack([x, y]), samples, other)
 
     out_logZ = jax.jit(jax.vmap(logZ))(stacked)
@@ -206,8 +216,8 @@ def test_jit_vmap_composition(samples):
     assert jnp.allclose(out_logL_P[1], other.logL_P())
     assert jnp.allclose(out_D_KL[0], samples.D_KL())
     assert jnp.allclose(out_D_KL[1], other.D_KL())
-    assert jnp.allclose(out_d_G[0], samples.d_G())
-    assert jnp.allclose(out_d_G[1], other.d_G())
+    assert jnp.allclose(out_d_G[0], samples.d_G(), rtol=D_G_RTOL)
+    assert jnp.allclose(out_d_G[1], other.d_G(), rtol=D_G_RTOL)
 
 
 @pytest.mark.parametrize("beta", [1e-4, 100.0])
