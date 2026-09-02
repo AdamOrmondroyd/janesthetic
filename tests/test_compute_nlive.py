@@ -56,3 +56,37 @@ def test_compute_nlive_vmappable():
     expected = jnp.array([[3, 2, 1],
                           [3, 2, 1]])
     assert jnp.all(nlive == expected)
+
+
+def test_compute_nlive_keep_drops_padding():
+    """A masked row is deleted outright: same answer as never passing it in.
+
+    Pads test_compute_nlive_single_replacement with a duplicate of the point
+    at logl=2, which would otherwise show up as an extra death.
+    """
+    logl = jnp.array([1.0, 2.0, 2.0, 3.0, 4.0])
+    logl_birth = jnp.array([jnp.nan, jnp.nan, jnp.nan, jnp.nan, 1.0])
+    keep = jnp.array([True, True, False, True, True])
+    nlive = compute_nlive(logl, logl_birth, keep)
+    assert jnp.all(nlive[keep] == jnp.array([3, 3, 2, 1]))
+
+
+def test_compute_nlive_keep_all_true():
+    """An all-True mask is the unmasked answer."""
+    logl = jnp.array([1.0, 2.0, 3.0, 4.0])
+    logl_birth = jnp.array([jnp.nan, jnp.nan, jnp.nan, 1.0])
+    keep = jnp.ones(4, dtype=bool)
+    assert jnp.all(compute_nlive(logl, logl_birth, keep)
+                   == compute_nlive(logl, logl_birth))
+
+
+def test_compute_nlive_keep_vmappable():
+    """Per-run masks batch along the leading axis."""
+    logl = jnp.array([[1.0, 2.0, 3.0],
+                      [4.0, 5.0, 6.0]])
+    logl_birth = jnp.full((2, 3), jnp.nan)
+    keep = jnp.array([[True, True, True],
+                      [True, False, True]])
+    nlive = jax.vmap(compute_nlive)(logl, logl_birth, keep)
+    assert jnp.all(nlive[0] == jnp.array([3, 2, 1]))
+    assert jnp.all(nlive[1][keep[1]] == jnp.array([2, 1]))
