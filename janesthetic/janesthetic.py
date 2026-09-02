@@ -1,17 +1,22 @@
 from chex import dataclass
-from jax import Array, grad
+from jax import Array, grad, lax
 from jax import numpy as jnp
 
 from janesthetic.special import logsumexp
 
 
-def compute_nlive(logl, logl_birth):
+def compute_nlive(logl, logl_birth, keep=None):
     n = logl.shape[0]
 
     # Birth events (+1) at indices 0..n-1, death events (-1) at indices n..2n-1
     combined_logL = jnp.concatenate([logl_birth, logl])
     combined_n = jnp.concatenate([jnp.ones(n, dtype=int),
                                   -jnp.ones(n, dtype=int)])
+
+    # A masked row contributes no event at either end, i.e. the particle is
+    # deleted from the run rather than merely ignored at the death contour.
+    if keep is not None:
+        combined_n = combined_n * jnp.concatenate([keep, keep]).astype(int)
 
     # Sort: nans first (initial live points,
     # mirrors anesthetic's na_position='first'),
@@ -32,31 +37,50 @@ def compute_nlive(logl, logl_birth):
     return num_live
 
 
-def sort(ns_run):
+def sort(ns_run, keep=None):
     sort_idx = jnp.argsort(ns_run.particles.loglikelihood)
     logl = ns_run.particles.loglikelihood[sort_idx]
     logl_birth = ns_run.particles.loglikelihood_birth[sort_idx]
-    nlive = compute_nlive(logl, logl_birth)
-    return SortedRun(logl=logl, nlive=nlive)
+    if keep is not None:
+        keep = keep[sort_idx]
+    nlive = compute_nlive(logl, logl_birth, keep)
+    return SortedRun(logl=logl, nlive=nlive, keep=keep)
 
 
 @dataclass
 class SortedRun:
     logl: Array
     nlive: Array
+    keep: Array | None = None
 
     def logdX(self):
         t = jnp.log(self.nlive/(self.nlive+1))
-        logX = jnp.cumsum(t)
-        logXp = jnp.concatenate([jnp.array([0.0]), logX[:-1]])
-        logXm = jnp.concatenate([logX[1:], jnp.array([-jnp.inf])])
+        if self.keep is None:
+            logX = jnp.cumsum(t)
+            logXp = jnp.concatenate([jnp.array([0.0]), logX[:-1]])
+            logXm = jnp.concatenate([logX[1:], jnp.array([-jnp.inf])])
+        else:
+            n = t.shape[0]
+            t = jnp.where(self.keep, t, 0.0)
+            logX = jnp.cumsum(t)
+            logXp = jnp.concatenate([jnp.array([0.0]), logX[:-1]])
+            # logX is flat along a masked stretch, so the look-ahead has to
+            # reach the next unmasked row: a reverse cummin over positions.
+            pos = jnp.where(self.keep, jnp.arange(n), n)
+            nxt = jnp.concatenate([lax.cummin(pos[::-1])[::-1][1:],
+                                   jnp.array([n])])
+            t_next = jnp.where(nxt < n, t[jnp.clip(nxt, 0, n - 1)], -jnp.inf)
+            logXm = logX + t_next
         return jnp.log1p(-jnp.exp(logXm-logXp)) + logXp - jnp.log(2)
 
     def logw(self, beta=1.0):
         logdX = self.logdX()
-        safe_logl = jnp.where(jnp.isneginf(self.logl), 0.0, self.logl)
+        drop = jnp.isneginf(self.logl)
+        if self.keep is not None:
+            drop = drop | ~self.keep
+        safe_logl = jnp.where(drop, 0.0, self.logl)
         return jnp.where(
-            jnp.isneginf(self.logl),
+            drop,
             -jnp.inf,
             logdX + safe_logl * beta
         )
